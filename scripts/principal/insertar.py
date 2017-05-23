@@ -14,13 +14,13 @@ matriz=[]
 ##METODO QUE CARGA EL ARCHIVO.SQL QUE CONTIENE EL COPY EL CUAL INSERTA DATOS A UNA TABLA DESDE UN SCV
 def insertar(main_folder):
 	try:
-		csv=os.popen("echo | psql -U postgres -h localhost -d RegistroCancerDB -f "+main_folder+"/scripts/sql_scripts/insertarFROMcsv.sql").read()
+		csv=os.popen("echo | psql -U postgres -h 192.168.216.21 -d RegistroCancerBD -f "+main_folder+"/scripts/sql_scripts/insertarFROMcsv.sql").read()
 	except Exception, e:
 		print "Ha fallado la insercion: error general",str(e)
 		sys.exit(1)
 
 def consultar_secuencia(main_folder):
-	csv=os.popen("echo | psql -U postgres -h localhost -d RegistroCancerDB -f "+main_folder+"/scripts/sql_scripts/query_sequence.sql").read()
+	csv=os.popen("echo | psql -U postgres -h 192.168.216.21 -d RegistroCancerBD -f "+main_folder+"/scripts/sql_scripts/query_sequence.sql").read()
 	return csv.split('\n')[2].strip()
 
 ##METODO PARA ESCRIBIR LA MATRIZ EN UN ARCHIVO SCV
@@ -37,8 +37,7 @@ def escribirCSV(main_folder):
 				#print "Entro: ", linea
 				#print "index", idx
 				#print "Tamanno", len(matriz)
-				reg.write("|".join(linea))
-				
+				reg.write("|".join(linea))				
 		else:
 			#print "index: ", idx
 			reg.write("|".join(linea))
@@ -56,16 +55,17 @@ def crearSQL(main_folder):
 	archivo_csv=main_folder+"/scripts/texto_plano/registro.csv"
 	ruta=main_folder+"/scripts/sql_scripts/insertarFROMcsv.sql"
 	sql=open(ruta, 'w')
+	texto="\COPY patho.tbl_labpat FROM '"+archivo_csv+"' DELIMITER '|' CSV HEADER;"
 	
 	##SE CREA LA CONSULTA
-	texto=("CREATE TEMP TABLE tmp_table AS SELECT * FROM patho.tbl_labpat WITH NO DATA;")
-	texto+="\nCOPY tmp_table FROM '"+archivo_csv+"' DELIMITER '|' CSV HEADER;"
-	# texto+="\nINSERT INTO muestra_html SELECT DISTINCT ON numeroregistro * FROM tmp_table;"
-	texto+=("\nINSERT INTO patho.tbl_labpat SELECT * FROM tmp_table t1"
-				"\nwhere not exists"
-				"\n(select id_tblpat from patho.tbl_labpat t2 "
-					"\nwhere t2.id_tblpat=t1.id_tblpat);")
-	texto+="\nDROP TABLE tmp_table;"
+	# texto=("CREATE TEMP TABLE tmp_table AS SELECT * FROM patho.tbl_labpat WITH NO DATA;")
+	# texto+="\n\COPY tmp_table FROM '"+archivo_csv+"' DELIMITER '|' CSV HEADER;"
+	# # texto+="\nINSERT INTO muestra_html SELECT DISTINCT ON numeroregistro * FROM tmp_table;"
+	# texto+=("\nINSERT INTO patho.tbl_labpat SELECT * FROM tmp_table t1"
+	# 			"\nwhere not exists"
+	# 			"\n(select id_tblpat from patho.tbl_labpat t2 "
+	# 				"\nwhere t2.id_tblpat=t1.id_tblpat);")
+	# texto+="\nDROP TABLE tmp_table;"
 	sql.write (texto)
 	texto=""
 
@@ -85,12 +85,13 @@ if __name__ == '__main__':
 	number=0
 	totalArchivos=len(subfiles_name)
 	objextraer = extraer.LecturaDOCX()
-	val_sequence=consultar_secuencia(folder_main)
-
+	val_sequence=int(consultar_secuencia(folder_main))+2
 	for file in subfiles_name:
 		#Se Lee el archivo
-		progress.printProgress(number, len(subfiles_name)-1, prefix = 'Progress:', suffix = 'Complete', barLength = 50)
-		objextraer.extraerEntidades(file, int(val_sequence)+1)
+		if (sys.argv[3]=="0"):
+			objextraer.extraerEntidades(file, int(val_sequence))
+		else:
+			objextraer.extraerEntidadesCito(file, int(val_sequence))
 		val_sequence=objextraer.getUpdateValSequence()
 		matriz=objextraer.getMatriz()
 
